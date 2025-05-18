@@ -1,0 +1,17 @@
+{
+    "name": "youtube-backend",
+    "version": "1.0.0",
+    "main": "index.js",
+    "scripts": {
+        "start": "node index.js"
+    },
+    "dependencies": {
+        "axios": "^1.9.0",
+        "body-parser": "^1.20.3",
+        "child_process": "^1.0.2",
+        "dotenv": "^16.5.0",
+        "express": "^4.21.2",
+        "mongoose": "^8.15.0",
+        "youtube-transcript": "^1.2.1"
+    }
+}
