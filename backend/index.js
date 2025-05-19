@@ -1,63 +1,43 @@
 require('dotenv').config();
-const express     = require('express');
-const bodyParser  = require('body-parser');
-const mongoose    = require('mongoose');
-const { searchYouTube } = require('./youtube');
-const { getTranscript } = require('./transcript');
-const Transcript  = require('./models/Transcript');
-
+const express = require('express');
+const bodyParser = require('body-parser');
+const mongoose = require('mongoose');
+const { processQueries } = require('./youtube'); // upgraded function
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Body parser
+// Middleware
 app.use(bodyParser.json());
 
-// MongoDB connect
+// MongoDB connection
 mongoose.connect(process.env.MONGO_URI, {
-  useNewUrlParser:    true,
+  useNewUrlParser: true,
   useUnifiedTopology: true,
 })
-.then(() => console.log('🔗 MongoDB connected'))
-.catch(err => console.error('MongoDB connection error:', err));
+  .then(() => console.log('🔗 MongoDB connected'))
+  .catch(err => console.error('❌ MongoDB connection error:', err));
 
+// API: POST /process-queries
 app.post('/process-queries', async (req, res) => {
-  const queries = req.body.queries || [];
-  const toInsert = [];
+  const queries = req.body.queries;
 
-  for (const query of queries) {
-    let videos = [];
-    try {
-      videos = await searchYouTube(query);
-    } catch (err) {
-      console.error(`YouTube search failed for "${query}":`, err.message);
-      continue;
-    }
-
-    for (const v of videos) {
-      const videoId = v.id.videoId;
-      const transcript = await getTranscript(videoId);
-      if (!transcript) continue;
-
-      toInsert.push({
-        query,
-        videoId,
-        title: v.snippet.title,
-        url:   `https://www.youtube.com/watch?v=${videoId}`,
-        transcript
-      });
-    }
+  if (!Array.isArray(queries) || queries.length === 0) {
+    return res.status(400).json({ error: 'Invalid or empty queries array.' });
   }
 
-  // Bulk insert (ignores duplicates if you add unique index later)
   try {
-    const docs = await Transcript.insertMany(toInsert);
-    res.json({ inserted: docs.length, docs });
+    await processQueries(queries);
+    res.json({
+      message: '✅ Queries processed and transcripts saved.'
+    });
+
   } catch (err) {
-    console.error('DB insert error:', err);
-    res.status(500).json({ error: 'Failed to save transcripts.' });
+    console.error('❌ Processing error:', err.message);
+    res.status(500).json({ error: 'Failed to process queries.' });
   }
 });
 
+// Server start
 app.listen(PORT, () => {
   console.log(`✅ Server running at http://localhost:${PORT}`);
 });
